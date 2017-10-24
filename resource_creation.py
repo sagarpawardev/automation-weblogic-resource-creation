@@ -1,4 +1,8 @@
 '''
+#################################################################
+
+# Author : Sagar Pawar
+
 This script helps in creating following resources:
 	- Manage Server
 	- File Store
@@ -12,10 +16,17 @@ Note:- If Resources Already exists then script skips the resource and move to ne
 Steps to un Script:-
     1. Paste File on server
     2. Go in /scratch/oracle/Oracle/Middleware/Oracle_Home/oracle_common/common/bin
-    3. Run following command "sh wlst.sh <File Path>" [e.g. sh wlst.sh /scratch/dumps/resource_creation.py]
+    3. Run following command "sh wlst.sh <File Path>" [e.g. sh wlst.sh /scratch/dumps/create_queue.py]
+	
+Pending Improvements:-
+	Setting SSL ports
+	Datasource creation
+	FileStore storage directory creation
+#################################################################
 '''
+
 #Module
-module_name = 'ITR'
+module_name = 'Script'
 
 #Server Credentials
 weblogic_uname = 'weblogic'
@@ -70,6 +81,36 @@ file_store_dir = '/scratch/work_area/'
 #--------------------Script Starts <DO NOT TOUCH>-------------------------
 import weblogic.descriptor.BeanAlreadyExistsException
 
+'''----------------UTILS----------------'''
+class Util:
+	def getNextAvailablePort(self):
+		print '==> Entering getNextAvailablePort()'
+		#Suppress ls() Output
+		redirect('/dev/null','false')
+		servers = ls('/Servers',returnMap='true')
+		print servers
+		ports = list()
+		for server in servers:
+		    print '==>Goint to Dir: '+'/Servers/'+server
+		    cd('/Servers/'+server)
+		    port = cmo.getListenPort()
+		    ports.append(port)
+		ports.sort()
+		curr_port = ports[0]
+		for port in ports:
+		    if port > curr_port:
+			    break
+		    else:
+			    curr_port = curr_port+1
+		#Activate ls Output
+		stopRedirect()
+		print '==> Exiting getNextAvailablePort() Return: '+str(curr_port)
+		return curr_port
+
+	def createDirIfNotExists(self, path):
+		pass
+
+
 '''Creating Variables'''
 manage_server = "MangServer_" + module_name
 system_module = "SystemModule_" + module_name
@@ -82,6 +123,7 @@ print '------------Initializing------------'
 connect(weblogic_uname, weblogic_pass, weblogic_url)
 edit()
 startEdit()
+util = Util()
 
 '''Creating Manage Server'''
 print '------------Creating Manage Server------------'
@@ -97,7 +139,14 @@ except:
     cmo.createServer(manage_server)
     cd(mang_server_path)
     cmo.setListenAddress('')
-    cmo.setListenPort(7015)
+	port = util.getNextAvailablePort()
+    cmo.setListenPort(port)
+	#Enable SSL port
+    cmo.setCluster(None)
+	mang_server_ssl_path = mang_server_path + '/SSL/' + manage_server
+    cd(mang_server_ssl_path)
+    cmo.setEnabled(true)
+    cmo.setListenPort(1000+port)
 
 '''Creating FileStore'''
 print '------------Creating File Store------------'
@@ -237,5 +286,3 @@ for i in range(len(queue_conn_fact_xa)):
     
 '''Activate'''    
 activate()
-
-
